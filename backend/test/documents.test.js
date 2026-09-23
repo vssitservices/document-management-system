@@ -31,6 +31,18 @@ test('POST /upload sem arquivo retorna 400', async () => {
   }
 });
 
+test('GET /documents retorna lista vazia quando não há documentos enviados', async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const response = await fetch(`${baseUrl}/documents`);
+    assert.strictEqual(response.status, 200);
+    const documentos = await response.json();
+    assert.deepStrictEqual(documentos, []);
+  } finally {
+    server.close();
+  }
+});
+
 test('fluxo completo: upload, listagem e download', async () => {
   const { server, baseUrl } = await startServer();
   try {
@@ -70,5 +82,56 @@ test('GET /documents/:id/download com id inexistente retorna 404', async () => {
     assert.strictEqual(response.status, 404);
   } finally {
     server.close();
+  }
+});
+
+test('upload de múltiplos documentos aparecem na listagem e podem ser baixados individualmente', async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const primeiroFormData = new FormData();
+    primeiroFormData.append('file', new Blob(['conteudo um']), 'documento-um.txt');
+    const primeiroUpload = await fetch(`${baseUrl}/upload`, { method: 'POST', body: primeiroFormData });
+    assert.strictEqual(primeiroUpload.status, 201);
+    const primeiroMetadata = await primeiroUpload.json();
+
+    const segundoFormData = new FormData();
+    segundoFormData.append('file', new Blob(['conteudo dois']), 'documento-dois.txt');
+    const segundoUpload = await fetch(`${baseUrl}/upload`, { method: 'POST', body: segundoFormData });
+    assert.strictEqual(segundoUpload.status, 201);
+    const segundoMetadata = await segundoUpload.json();
+
+    const listResponse = await fetch(`${baseUrl}/documents`);
+    assert.strictEqual(listResponse.status, 200);
+    const documentos = await listResponse.json();
+    assert.ok(documentos.some((documento) => documento.id === primeiroMetadata.id));
+    assert.ok(documentos.some((documento) => documento.id === segundoMetadata.id));
+
+    const primeiroDownload = await fetch(`${baseUrl}/documents/${primeiroMetadata.id}/download`);
+    assert.strictEqual(primeiroDownload.status, 200);
+    assert.strictEqual(await primeiroDownload.text(), 'conteudo um');
+
+    const segundoDownload = await fetch(`${baseUrl}/documents/${segundoMetadata.id}/download`);
+    assert.strictEqual(segundoDownload.status, 200);
+    assert.strictEqual(await segundoDownload.text(), 'conteudo dois');
+  } finally {
+    server.close();
+    limparStorage();
+  }
+});
+
+test('GET /documents/:id/download expõe o nome original do arquivo no cabeçalho de resposta', async () => {
+  const { server, baseUrl } = await startServer();
+  try {
+    const formData = new FormData();
+    formData.append('file', new Blob(['dados do relatório']), 'relatorio-final.pdf');
+    const uploadResponse = await fetch(`${baseUrl}/upload`, { method: 'POST', body: formData });
+    const metadata = await uploadResponse.json();
+
+    const downloadResponse = await fetch(`${baseUrl}/documents/${metadata.id}/download`);
+    assert.strictEqual(downloadResponse.status, 200);
+    assert.match(downloadResponse.headers.get('content-disposition') || '', /relatorio-final\.pdf/);
+  } finally {
+    server.close();
+    limparStorage();
   }
 });
