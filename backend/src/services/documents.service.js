@@ -9,10 +9,10 @@ function toPublicMetadata(document) {
   return { id, originalName, size, uploadedAt, owner };
 }
 
-function registerUpload(file) {
+function createStoredDocument(file) {
   // O multer já gerou um nome único (UUID) para o arquivo em disco.
   const id = path.parse(file.filename).name;
-  const document = {
+  return {
     id,
     originalName: file.originalname,
     size: file.size,
@@ -20,6 +20,10 @@ function registerUpload(file) {
     owner: DEFAULT_OWNER,
     storedFileName: file.filename,
   };
+}
+
+function registerUpload(file) {
+  const document = createStoredDocument(file);
   documentsRepository.save(document);
   return toPublicMetadata(document);
 }
