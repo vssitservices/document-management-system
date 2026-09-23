@@ -1,21 +1,10 @@
-const crypto = require('node:crypto');
-const path = require('node:path');
 const express = require('express');
 const multer = require('multer');
 const documentsController = require('../controllers/documents.controller');
-const { STORAGE_DIR } = require('../repositories/documents.repository');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, STORAGE_DIR);
-  },
-  filename: (req, file, cb) => {
-    const extensao = path.extname(file.originalname);
-    cb(null, `${crypto.randomUUID()}${extensao}`);
-  },
-});
-
-const upload = multer({ storage });
+// O arquivo fica em memória até o service decidir o nome definitivo e gravá-lo
+// em disco; assim a rota não precisa conhecer detalhes de persistência.
+const upload = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 

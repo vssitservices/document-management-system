@@ -1,29 +1,38 @@
-const path = require('node:path');
 const documentsService = require('../services/documents.service');
-const { STORAGE_DIR } = require('../repositories/documents.repository');
 
-function upload(req, res) {
+async function upload(req, res, next) {
   if (!req.file) {
     return res.status(400).json({ erro: 'Nenhum arquivo foi enviado.' });
   }
-  const metadata = documentsService.registerUpload(req.file);
-  return res.status(201).json(metadata);
+  try {
+    const metadata = await documentsService.registerUpload(req.file);
+    return res.status(201).json(metadata);
+  } catch (error) {
+    return next(error);
+  }
 }
 
-function list(req, res) {
-  return res.json(documentsService.listDocuments());
+function list(req, res, next) {
+  try {
+    return res.json(documentsService.listDocuments());
+  } catch (error) {
+    return next(error);
+  }
 }
 
-function download(req, res) {
-  const documento = documentsService.getDocumentForDownload(req.params.id);
-  if (!documento) {
+function download(req, res, next) {
+  const arquivo = documentsService.getDownloadFilePath(req.params.id);
+  if (!arquivo) {
     return res.status(404).json({ erro: 'Documento não encontrado.' });
   }
-  const filePath = path.join(STORAGE_DIR, documento.storedFileName);
-  return res.download(filePath, documento.originalName, (err) => {
-    if (err && !res.headersSent) {
-      res.status(404).json({ erro: 'Arquivo do documento não encontrado no armazenamento.' });
+  return res.download(arquivo.filePath, arquivo.originalName, (err) => {
+    if (!err) {
+      return;
     }
+    if (res.headersSent) {
+      return next(err);
+    }
+    res.status(404).json({ erro: 'Arquivo do documento não encontrado no armazenamento.' });
   });
 }
 

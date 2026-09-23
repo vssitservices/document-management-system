@@ -27,8 +27,15 @@ export async function listDocuments() {
 }
 
 function extractFileName(contentDisposition, fallbackName) {
-  const match = contentDisposition?.match(/filename="?([^"]+)"?/);
-  return match ? match[1] : fallbackName;
+  if (!contentDisposition) {
+    return fallbackName;
+  }
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+  const asciiMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+  return asciiMatch ? asciiMatch[1] : fallbackName;
 }
 
 export async function downloadDocument(id, fallbackName) {
