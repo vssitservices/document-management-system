@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { uploadDocument } from '../services/documentsApi';
+import { useAsyncAction } from '../hooks/useAsyncAction';
 
 export default function UploadComponent({ onUploaded }) {
   const [selectedFile, setSelectedFile] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [erro, setErro] = useState(null);
+  const {
+    execute: enviarDocumento,
+    isLoading: isUploading,
+    erro,
+  } = useAsyncAction(uploadDocument, 'Não foi possível enviar o documento. Tente novamente.');
 
   function handleFileChange(event) {
     setSelectedFile(event.target.files[0] ?? null);
@@ -16,17 +20,13 @@ export default function UploadComponent({ onUploaded }) {
       return;
     }
 
-    setIsUploading(true);
-    setErro(null);
     try {
-      await uploadDocument(selectedFile);
+      await enviarDocumento(selectedFile);
       setSelectedFile(null);
       event.target.reset();
       onUploaded?.();
     } catch (error) {
-      setErro('Não foi possível enviar o documento. Tente novamente.');
-    } finally {
-      setIsUploading(false);
+      // erro já é exposto via estado `erro` do hook
     }
   }
 

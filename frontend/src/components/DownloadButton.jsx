@@ -1,17 +1,14 @@
-import { useState } from 'react';
 import { downloadDocument } from '../services/documentsApi';
+import { useAsyncAction } from '../hooks/useAsyncAction';
 
 export default function DownloadButton({ documentId, originalName }) {
-  const [isDownloading, setIsDownloading] = useState(false);
+  const { execute: baixarDocumento, isLoading: isDownloading } = useAsyncAction(downloadDocument);
 
   async function handleClick() {
-    setIsDownloading(true);
     try {
-      await downloadDocument(documentId, originalName);
+      await baixarDocumento(documentId, originalName);
     } catch (error) {
       window.alert('Não foi possível baixar o documento.');
-    } finally {
-      setIsDownloading(false);
     }
   }
 

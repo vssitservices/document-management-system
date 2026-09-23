@@ -28,14 +28,14 @@ export default function DocumentList({ documents }) {
         </tr>
       </thead>
       <tbody>
-        {documents.map((document) => (
-          <tr key={document.id}>
-            <td>{document.originalName}</td>
-            <td>{formatSize(document.size)}</td>
-            <td>{new Date(document.uploadedAt).toLocaleString('pt-BR')}</td>
-            <td>{document.owner}</td>
+        {documents.map((documento) => (
+          <tr key={documento.id}>
+            <td>{documento.originalName}</td>
+            <td>{formatSize(documento.size)}</td>
+            <td>{new Date(documento.uploadedAt).toLocaleString('pt-BR')}</td>
+            <td>{documento.owner}</td>
             <td>
-              <DownloadButton documentId={document.id} originalName={document.originalName} />
+              <DownloadButton documentId={documento.id} originalName={documento.originalName} />
             </td>
           </tr>
         ))}

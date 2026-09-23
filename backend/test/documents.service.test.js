@@ -6,40 +6,53 @@ const documentsRepository = require('../src/repositories/documents.repository');
 const originalSave = documentsRepository.save;
 const originalFindAll = documentsRepository.findAll;
 const originalFindById = documentsRepository.findById;
+const originalSaveFile = documentsRepository.saveFile;
+const originalGetFilePath = documentsRepository.getFilePath;
 
 afterEach(() => {
   documentsRepository.save = originalSave;
   documentsRepository.findAll = originalFindAll;
   documentsRepository.findById = originalFindById;
+  documentsRepository.saveFile = originalSaveFile;
+  documentsRepository.getFilePath = originalGetFilePath;
 });
 
-test('registerUpload salva o documento completo e retorna apenas os metadados públicos', () => {
+test('registerUpload grava o arquivo, salva o documento completo e retorna apenas os metadados públicos', async () => {
   let savedDocument;
+  let savedFileName;
+  let savedBuffer;
   documentsRepository.save = (document) => {
     savedDocument = document;
     return document;
   };
+  documentsRepository.saveFile = async (fileName, buffer) => {
+    savedFileName = fileName;
+    savedBuffer = buffer;
+  };
 
-  const metadata = documentsService.registerUpload({
-    filename: '123e4567-e89b-12d3-a456-426614174000.pdf',
+  const buffer = Buffer.from('conteudo do arquivo');
+  const metadata = await documentsService.registerUpload({
     originalname: 'contrato.pdf',
     size: 2048,
+    buffer,
   });
 
+  assert.strictEqual(savedBuffer, buffer);
+  assert.match(savedFileName, /^[0-9a-f-]{36}\.pdf$/, 'o nome do arquivo em disco deve usar um uuid gerado pelo service');
   assert.deepStrictEqual(metadata, {
-    id: '123e4567-e89b-12d3-a456-426614174000',
+    id: savedDocument.id,
     originalName: 'contrato.pdf',
     size: 2048,
     uploadedAt: savedDocument.uploadedAt,
     owner: 'default-user',
   });
   assert.deepStrictEqual(savedDocument, {
-    id: '123e4567-e89b-12d3-a456-426614174000',
+    id: savedDocument.id,
     originalName: 'contrato.pdf',
     size: 2048,
     uploadedAt: savedDocument.uploadedAt,
     owner: 'default-user',
-    storedFileName: '123e4567-e89b-12d3-a456-426614174000.pdf',
+    storedFileName: savedFileName,
   });
 });
 
@@ -81,7 +94,7 @@ test('listDocuments expõe apenas os metadados públicos dos documentos salvos',
   ]);
 });
 
-test('getDocumentForDownload delega a busca ao repositório', () => {
+test('getDownloadFilePath resolve o caminho do arquivo a partir do repositório', () => {
   const storedDocument = {
     id: 'doc-1',
     originalName: 'primeiro.pdf',
@@ -91,13 +104,27 @@ test('getDocumentForDownload delega a busca ao repositório', () => {
     storedFileName: 'doc-1.pdf',
   };
   let receivedId;
+  let receivedFileName;
   documentsRepository.findById = (id) => {
     receivedId = id;
     return storedDocument;
   };
+  documentsRepository.getFilePath = (fileName) => {
+    receivedFileName = fileName;
+    return `/storage/${fileName}`;
+  };
 
-  const result = documentsService.getDocumentForDownload('doc-1');
+  const result = documentsService.getDownloadFilePath('doc-1');
 
   assert.strictEqual(receivedId, 'doc-1');
-  assert.strictEqual(result, storedDocument);
+  assert.strictEqual(receivedFileName, 'doc-1.pdf');
+  assert.deepStrictEqual(result, { filePath: '/storage/doc-1.pdf', originalName: 'primeiro.pdf' });
+});
+
+test('getDownloadFilePath retorna null quando o documento não existe', () => {
+  documentsRepository.findById = () => undefined;
+
+  const result = documentsService.getDownloadFilePath('inexistente');
+
+  assert.strictEqual(result, null);
 });

@@ -25,6 +25,13 @@ app.get('/health', (req, res) => {
 
 app.use(documentsRoutes);
 
+// Middleware de erro centralizado: evita vazar stack trace para o cliente.
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ erro: 'Erro interno do servidor.' });
+});
+
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`DMS backend ouvindo na porta ${PORT}`);
